@@ -1,0 +1,19 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: bounced-virtualservice
+spec:
+  hosts:
+  - "bounced-service.kind.org"
+  gateways:
+  - services-gateway
+  http:
+  - route:
+    - destination:
+        host: bounced-service
+        port:
+          number: 9090
+    retries:
+      attempts: 10
+      perTryTimeout: 2s
+      retryOn: "5xx"
