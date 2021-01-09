@@ -1,0 +1,18 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: service
+spec:
+  template:
+    spec:
+      containers:
+        - name: service
+          env:
+          - name: DISCARD_QUOTA
+            value: "70"
+          - name: REJECT
+            value: "1"
+          - name: TRACING
+            value: "1"
+          - name: JAEGER_URL
+            value: "http://jaeger-collector.istio-system.svc.cluster.local:14268/api/traces"

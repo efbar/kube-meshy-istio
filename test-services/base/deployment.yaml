@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: service
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+    spec:
+      containers:
+        - name: service
+          env:
+          - name: DISCARD_QUOTA
+            value: "0"
+          - name: REJECT
+            value: "0"
+          image: localhost:5000/minimal-service:v1.0.0
+          ports:
+          - containerPort: 9090
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 9090
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 9090
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          resources:
+            requests:
+              memory: "100Mi"
+              cpu: "250m"
+            limits:
+              memory: "128Mi"
+              cpu: "500m"
+      securityContext:
+        runAsNonRoot: false
+
