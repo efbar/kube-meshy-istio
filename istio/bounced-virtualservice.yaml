@@ -4,7 +4,7 @@ metadata:
   name: bounced-virtualservice
 spec:
   hosts:
-  - "bounced-service.kind.org"
+  - "bounced.svc.kind.org"
   gateways:
   - services-gateway
   http:
