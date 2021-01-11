@@ -286,10 +286,9 @@ spec:
   type: NodePort
   ports:
     - name: http
-      port: 8080
+      port: 80
       protocol: TCP
       targetPort: http
-      nodePort: 30100
     - name: https
       port: 443
       protocol: TCP
@@ -393,7 +392,7 @@ spec:
             - name: http
               containerPort: 80
               protocol: TCP
-              hostPort: 8080
+              hostPort: 80
             - name: https
               containerPort: 443
               protocol: TCP
