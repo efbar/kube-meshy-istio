@@ -4,7 +4,7 @@ metadata:
   name: minimal-virtualservice
 spec:
   hosts:
-  - "minimal-service.kind.org"
+  - "minimal.svc.kind.org"
   gateways:
   - services-gateway
   http:
