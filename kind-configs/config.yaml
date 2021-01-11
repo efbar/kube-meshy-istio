@@ -19,6 +19,12 @@ nodes:
   - containerPort: 30100
     hostPort: 8080
     protocol: TCP
+  - containerPort: 30200
+    hostPort: 8081
+    protocol: TCP
+  - containerPort: 30300
+    hostPort: 3000
+    protocol: TCP
 - role: worker
   image: kindest/node:v1.19.1
 - role: worker
