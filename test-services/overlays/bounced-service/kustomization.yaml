@@ -13,7 +13,12 @@ patchesStrategicMerge:
 - custom-env.yaml
 patchesJson6902:
 - target:
-    version: v1beta1
+    version: v1
+    kind: Deployment
+    name: service
+  path: container-name.yaml
+- target:
+    version: v1
     kind: Ingress
     name: service
   path: ingress-patch.yaml

@@ -4,9 +4,10 @@ kind: Kustomization
 bases:
   - ../../base
 namePrefix: minimal-
+nameSuffix: -v2
 commonLabels:
   app: minimal-service
-  version: v1
+  version: v2
 replicas:
 - name: service
   count: 1
