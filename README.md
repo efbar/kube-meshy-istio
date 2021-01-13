@@ -64,9 +64,9 @@ $ docker push localhost:5000/[YOUR-IMAGE]:[TAG]
 ```
 
 
-### Play with mesh
+## Play with mesh
 
-#### Setup the mesh
+### Setup the mesh
 
 Download Istio binaries:
 ```bash
@@ -170,7 +170,7 @@ And we reached Kiali's pod.
 
 ----
 
-##### Meshing workload
+#### Meshing workload
 
 The next step is deploying the worker plane of the mesh. That means sidecar containers along side the actual workload pods.
 One way to do this is marking a namespace as injectable of Istio's envoys:
@@ -232,9 +232,9 @@ bounced-service-7fd6cd6797-ngdfv      2/2     Running   0          15m
 minimal-service-6d69cfd898-c4qmn      2/2     Running   0          15m
 ```
 
-#### Use mesh feature
+### Use mesh feature
 
-##### Gateways and Virtual Services
+#### Gateways and Virtual Services
 
 First thing, to reach our services deployed in `default` namespace we need a `Gateway` for that namespace:
 
@@ -254,7 +254,7 @@ $ kubectl apply -f istio/minimal-virtualservice.yaml
 
 ----
 
-##### Retries
+#### Retries
 
 Now that we have all set up we can proceed to execute some requests from outside the cluster. In particular, we are going to make `POST` requests to `minimal-service` to a fixed path, passing a specific body. In this body we ask `minimal-service` to perform a `GET` request to an endpoint, in this case is `bounced-service` endpoint.
 
@@ -332,7 +332,7 @@ and finally:
 
 ----
 
-##### Traffic Shifting
+#### Traffic Shifting
 
 In some use cases we would like to test new versions of the same service without impacting on end users. `Canary deployment` or `Blue/Green` testing can be achieved brilliantly with Istio's service mesh.
 
@@ -433,7 +433,7 @@ this confirms equal traffic routing and looking at Kiali we have this scenario b
 
 ----
 
-##### Service Discovery and Service Entries
+#### Service Discovery and Service Entries
 
 One of the key feature of Istio is Service Discovery and it works out of the box.
 In our scenario we are going to try to reach an external service, not in the Kind cluster, simulating a classical use case.
