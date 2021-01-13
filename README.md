@@ -438,7 +438,7 @@ this confirms equal traffic routing and looking at Kiali we have this scenario b
 One of the key feature of Istio is Service Discovery and it works out of the box.
 In our scenario we are going to try to reach an external service, not in the Kind cluster, simulating a classical use case.
 
-To do this first we have to run the external service. Since we have already downloaded the `minimal-service` image, we can run this with Docker service:
+To do this, first we have to run the external service. Since we have already downloaded the `minimal-service` image, we can run this with Docker service:
 
 ```bash
 $ docker run --rm -p9090:9090 --name minimal-service minimal-service:v1.0.0
@@ -459,7 +459,7 @@ Then we have to route the L7 traffic through this:
 $ kubectl apply -f istio/egress-virtualservice.yaml
 ```
 
-we are now telling Istio that every request with Host header `minimal.external.kind.org` that come from the mesh and to route it to the destination `minimal.external.kind.org` passing trough the egress-gateway.
+we are now telling Istio that every request with Host header `minimal.external.kind.org` that comes from the mesh, to route it to the destination `minimal.external.kind.org` passing trough the egress-gateway.
 
 But how do we know to resolve `minimal.external.kind.org`?
 We need Istio's `ServiceEntry`.
@@ -484,7 +484,7 @@ $ kubectl apply -f istio/service-entry.yaml
 
 The `resolution` key can be `STATIC` or `DNS`.
 
-In case of `DNS` we would leave to an external resolve do the job, in our case we have to add to `/etc/hosts` file the IP address of `minimal-service` docker container:
+In case of `DNS`, we would leave to an external resolver do the job, in our case we have to add to `/etc/hosts` file the IP address of `minimal-service` docker container:
 
 ```bash
 $ docker inspect -f '{{.NetworkSettings.IPAddress}}' <CONTAINER_ID>
@@ -496,7 +496,7 @@ and add this IP address to our `/etc/hosts/`:
 $ echo "<CONTAINER_IP_ADDR> minimal.external.kind.org" | sudo tee -a /etc/hosts
 ```
 
-We can also avoid this adding a static IP address to the `ServiceEntry`:
+We can also avoid this by adding a static IP address to the `ServiceEntry`:
 
 ```yaml
   hosts:
@@ -543,7 +543,7 @@ Logger: 2021/01/12 17:09:47  [INFO] [Starting server on port 9090]
 Logger: 2021/01/13 10:29:25  [INFO] [GET / 172.17.0.3:50466]
 ```
 
-with `172.17.0.3` that is one of Kind workers IP address:
+with `172.17.0.3` GET request received, that is the IP address of one worker node of Kubernetes:
 
 ```bash
 docker ps | grep worker
