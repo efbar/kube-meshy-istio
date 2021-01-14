@@ -1,0 +1,46 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: minimal-service-filter
+spec:
+  workloadSelector:
+    labels:
+      app: minimal-service
+  configPatches:
+  - applyTo: HTTP_FILTER
+    match:
+      context: SIDECAR_INBOUND
+      listener:
+        filterChain:
+          filter:
+            name: "envoy.http_connection_manager"
+            subFilter:
+              name: "envoy.router"
+    patch:
+      operation: INSERT_BEFORE
+      value:
+       name: envoy.lua
+       typed_config:
+         "@type": "type.googleapis.com/envoy.config.filter.http.lua.v2.Lua"
+         inlineCode: |
+            local status
+            function envoy_on_request(request_handle)
+              request_handle:logWarn("TRIGGER POST")
+              local payload = '{"rebound":"true","endpoint":"http://bounced-service:9090"}'
+              local headers, body = request_handle:httpCall(
+              "inbound|9090||",
+              {
+                [":method"] = "POST",
+                [":path"] = "/bounce",
+                [":authority"] = "ENVOY",
+              },
+              payload,
+              5000)
+              JSON = (loadfile "/var/lib/lua/json.lua")()
+              local json_table = JSON:decode(body)
+              request_handle:logWarn(json_table.body)
+              status = json_table.body
+            end
+            function envoy_on_response(response_handle)
+                response_handle:headers():add("POST_RESULT", status)
+            end
