@@ -555,3 +555,227 @@ docker ps | grep worker
 $ docker inspect -f '{{.NetworkSettings.IPAddress}}' 11da9c53c43a
 172.17.0.3
 ```
+
+----
+
+#### Cluster-to-cluster communication with Envoy filter
+
+We just saw how to talk to external services. But what if an external service resides into another Kubernetes cluster?
+
+We're are going to show how to do a simple intra-cluster request between two services, for doing (simulate) that we need to:
+
+- deploy a new Kind cluster with different ports
+- install Istio
+- deploy `minimal-service` and `bounced-service` into the new cluster
+- install an Istio Gateway and VirtualService
+
+First, the new cluster:
+
+```bash
+$ kind create cluster  --name kube-1.19.1-cluster2 --config kind-configs/config-cluster2.yaml
+```
+
+that differs from the first in name and:
+
+```yaml
+  ...
+  extraPortMappings:
+  - containerPort: 80
+    hostPort: 8088
+    protocol: TCP
+  - containerPort: 30100
+    hostPort: 8090
+  ...
+```
+
+so now we can eventually reach endpoints at `8088` or `8090`.
+Installing Istio is the same of before, obviously before operating in the new cluster be sure of switching kube context:
+
+```bash
+$ kubectl config use-context kind-kube-1.19.1-cluster2
+```
+
+Now, after Istio installation (and `default` namespace injection labelling), we can deploy our services.
+
+As before, to reach them from outside we need a Gateway and VirtualService.
+Here there is something different from the first cluster. We need to change the hosts' FQDN in `*.svc.kind.cluster2`.
+So from outside we can do a `GET` request with:
+
+```bash
+$ curl -s -H "Host: minimal.svc.kind.org" localhost:8090   
+{"host":"minimal.svc.kind.cluster2","statuscode":200,"headers":{"Accept":"*/*","Content-Length":"0", ...
+...
+```
+
+Ok, but we need to access the service from "cluster 1". 
+The first thing that we have to do is changing the "name resolving" inside `/etc/hosts` with the IP address of the new cluster (i.e.: `172.17.0.9 minimal.external.kind.org`). Then change the port of the `ServiceEntry` with the port of the endopoint, in our case it is the port of the `NodePort` of the ingressgateway service, `30100`:
+
+```bash
+$ kubectl apply -f istio/service-entry-cluster2port.yaml
+```
+
+After this, we change kube-context and then perform a curl inside `minimal-service` pod:
+
+```bash
+$ kubectl exec -it minimal-service-6d69cfd898-c4qmn -c minimal-service -- curl minimal.external.kind.org:30100 -v
+*   Trying 172.17.0.9:30100...
+* Connected to minimal.external.kind.org (172.17.0.9) port 30100 (#0)
+> GET / HTTP/1.1
+> Host: minimal.external.kind.org:30100
+> User-Agent: curl/7.69.1
+> Accept: */*
+> 
+* Mark bundle as not supporting multiuse
+< HTTP/1.1 404 Not Found
+< date: Thu, 14 Jan 2021 16:17:55 GMT
+< server: envoy
+< content-length: 0
+< x-envoy-upstream-service-time: 1
+< 
+* Connection #0 to host minimal.external.kind.org left intact
+```
+
+Something happens, but not what we wanted. We reached the gateway but it can't route the request correctly..and it is right since we are passing a different Host header and not what we must to:
+
+```bash
+...
+> Host: minimal.external.kind.org:30100
+...
+```
+
+Here is where `EnvoyFilter` can help us:
+
+```bash
+$ kubectl apply -f istio/minimal-filter.yaml
+```
+
+With this file we are deploying an `EnvoyFilter` for the ingressgateway. In particular we are filtering, with an HTTP filter based on Lua, the headers of the request, and we are doing that before the `VirtualService` routing decision.
+In the Lua script:
+
+```lua
+filter_name = "minimal.svc.kind.cluster2"
+function envoy_on_request(request_handle)
+    request_handle:headers():replace("Host", filter_name)
+end
+```
+
+we are replacing the Host header of the request, setting the right header (this will change the header for every request. Obviously it is not the right thing to do, it should be parsed and replaced only the subdomain but for the sake of the test it is good enough).
+
+Now if we do again:
+
+```bash
+$ kubectl exec -it minimal-service-6d69cfd898-c4qmn -c minimal-service -- curl minimal.external.kind.org:30100 -v
+*   Trying 172.17.0.9:30100...
+* Connected to minimal.external.kind.org (172.17.0.9) port 30100 (#0)
+> GET / HTTP/1.1
+> Host: minimal.external.kind.org:30100
+> User-Agent: curl/7.69.1
+> Accept: */*
+> 
+* Mark bundle as not supporting multiuse
+< HTTP/1.1 200 OK
+< content-type: application/json
+< date: Thu, 14 Jan 2021 16:31:22 GMT
+< content-length: 912
+< x-envoy-upstream-service-time: 8
+< server: envoy
+< 
+{"host":"minimal.svc.kind.cluster2","statuscode":200,"headers":{"Accept":"*/*","Content-Length":"0","Duration":"0.16966","Request-time":"2021-01-14 16:31:22.27382959 +0000 UTC","Response-time":"2021-01-14 16:31:22.27399925 +0000 UTC","User-Agent":"curl/7.69.1","X-B3-Parentspanid":"880b4bcc49d74427","X-B3-Sampled":"0","X-B3-Spanid":"af565cd4a3c6894f","X-B3-Traceid":"edfb51a1f96993d8104a12fa09690140","X-Envoy-Attempt-Count":"1","X-Envoy-Internal":"true","X-Forwarded-Client-Cert":"By=spiffe://cluster.local/ns/default/sa/default;Hash=fd72aca401aa5cfcc5f245531771271ccd8910b69240310b14fcc99eff26fe7f;Subject=\"\";URI=spiffe://cluster.local/ns/istio-system/sa/istio-ingressgateway-service-account","X-Forwarded-For":"172.17.0.9","X-Forwarded-Proto":"http","X-Request-Id":"e5b8f00e-97e6-4326-b455-72d570aa875c"},"protocol":"HTTP/1.1","requestURI":"/","servedBy":"minimal-service-5b88b77899-mjxnf","method":"GET"}
+* Connection #0 to host minimal.external.kind.org left intact
+```
+
+we can reach the service and we are sure that is the right service because inside the body it responses with `"X-Forwarded-For":"172.17.0.9"`, this is the IP address of the gateway of the second cluster and `"servedBy":"minimal-service-5b88b77899-mjxnf"` is the actual pod.
+
+##### Pushing more EnvoyFilters
+
+We could use `EnvoyFilter` for doing something more. For example, applying a filter to the sidecars of certain pod for various purposes.
+
+```bash
+kubectl apply -f istio/minimal-filter.yaml
+```
+
+in this filter the lua script performs a `POST` request to the service, saving the response of this request in an `POST_RESULT` header:
+
+```lua
+local status
+function envoy_on_request(request_handle)
+  request_handle:logWarn("TRIGGER POST")
+  local payload = '{"rebound":"true","endpoint":"http://bounced-service:9090"}'
+  local headers, body = request_handle:httpCall(
+  "inbound|9090||",
+  {
+    [":method"] = "POST",
+    [":path"] = "/bounce",
+    [":authority"] = "ENVOY",
+  },
+  payload,
+  5000)
+  JSON = (loadfile "/var/lib/lua/json.lua")()
+  local dump_json = dump(body)
+  local json_table = JSON:decode(dump_json)
+  request_handle:logWarn(json_table.body)
+  status = json_table.body
+end
+function envoy_on_response(response_handle)
+    response_handle:headers():add("POST_RESULT", status)
+end
+```
+
+In details, we are execute a `POST` request passing a specific body, this will trigger the request from the service to `bounced-service` as we did in the previous examples. This time, though, it is Envoy proxy that executes the `POST` request while we are simply executing a `GET`.
+
+```bash
+$ kubectl exec -it minimal-service-6d69cfd898-c4qmn -c minimal-service -- curl minimal.external.kind.org:30100 -v
+*   Trying 172.17.0.9:30100...
+* Connected to minimal.external.kind.org (172.17.0.9) port 30100 (#0)
+> GET / HTTP/1.1
+> Host: minimal.external.kind.org:30100
+> User-Agent: curl/7.69.1
+> Accept: */*
+> 
+* Mark bundle as not supporting multiuse
+< HTTP/1.1 200 OK
+< content-type: application/json
+< date: Thu, 14 Jan 2021 16:47:52 GMT
+< content-length: 914
+< x-envoy-upstream-service-time: 11
+< post_result: 200 OK
+< server: envoy
+< 
+{"host":"minimal.svc.kind.cluster2","statuscode":200,"headers":{"Accept":"*/*","Content-Length":"0","Duration":"0.019602","Request-time":"2021-01-14 16:47:52.97044417 +0000 UTC","Response-time":"2021-01-14 16:47:52.970463772 +0000 UTC","User-Agent":"curl/7.69.1","X-B3-Parentspanid":"ae162dea89b57987","X-B3-Sampled":"0","X-B3-Spanid":"5ed211e1d51d2e1f","X-B3-Traceid":"b03f1a8dcd0f5892ef872bd39e890458","X-Envoy-Attempt-Count":"1","X-Envoy-Internal":"true","X-Forwarded-Client-Cert":"By=spiffe://cluster.local/ns/default/sa/default;Hash=fd72aca401aa5cfcc5f245531771271ccd8910b69240310b14fcc99eff26fe7f;Subject=\"\";URI=spiffe://cluster.local/ns/istio-system/sa/istio-ingressgateway-service-account","X-Forwarded-For":"172.17.0.9","X-Forwarded-Proto":"http","X-Request-Id":"53f02626-9617-499c-81dc-64bf2612ed4d"},"protocol":"HTTP/1.1","requestURI":"/","servedBy":"minimal-service-5b88b77899-mjxnf","method":"GET"}
+* Connection #0 to host minimal.external.kind.org left intact
+```
+
+The response is similar to the previous one, but important are the response headers:
+
+```bash
+...
+< post_result: 200 OK
+...
+```
+
+this is Envoy that filled that header with a particular key of the JSON response of `bounced-service`.
+We have confirm of the triggered request from `minimal-service` Istio's Envoy logs:
+
+```bash
+$ kubectl logs -f --tail=100 minimal-service-5b88b77899-mjxnf istio-proxy
+...
+2021-01-14T16:47:52.962135Z	warning	envoy lua	script log: TRIGGER POST
+2021-01-14T16:47:52.969907Z	warning	envoy lua	script log: 200 OK
+...
+```
+
+and from `bounced-service` logs:
+
+```bash
+$ kubectl logs  bounced-service-6dff4d8dbf-j9p89 -c bounced-service
+...
+Logger: 2021/01/14 16:47:52  [INFO] [GET / 127.0.0.1:46422]
+```
+
+In Kiali of the first cluster we can see that the flow of the request is exiting from the cluster, `PassthroughCluster (unknown)` since this is something outside the internal mesh:
+
+![](images/filters/filter_first.png)
+
+While in Kiali of the second cluster there is the actual flow of data like if the request would come from outside the cluster (which is what actually happened).
+
+![](images/filters/filter_second.png)
