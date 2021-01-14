@@ -8,7 +8,10 @@ spec:
     type: RollingUpdate
   template:
     metadata:
+      annotations:
+        sidecar.istio.io/userVolumeMount: '[{"name":"lua-libs", "mountPath":"/var/lib/lua", "readonly":true}]'
     spec:
+      volumes: []
       containers:
         - name: service
           env:
@@ -38,6 +41,7 @@ spec:
             limits:
               memory: "128Mi"
               cpu: "500m"
+          volumeMounts: []
       securityContext:
         runAsNonRoot: false
 

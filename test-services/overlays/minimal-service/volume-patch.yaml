@@ -1,0 +1,16 @@
+- op: add
+  path: /spec/template/spec/volumes/-
+  value:
+    name: lua-libs
+    configMap:
+      name: lua-libs
+      items:
+      - key: json.lua
+        path: json.lua
+      - key: uuid.lua
+        path: uuid.lua
+- op: add
+  path: /spec/template/spec/containers/0/volumeMounts/0
+  value:
+    name: lua-libs
+    mountPath: /var/lib/lua

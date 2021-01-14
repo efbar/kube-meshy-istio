@@ -13,6 +13,8 @@ spec:
           - name: REJECT
             value: "1"
           - name: TRACING
+            value: "0"
+          - name: DEBUG
             value: "1"
           - name: JAEGER_URL
             value: "http://jaeger-collector.istio-system.svc.cluster.local:14268/api/traces"

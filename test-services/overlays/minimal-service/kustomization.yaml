@@ -23,3 +23,14 @@ patchesJson6902:
     kind: Ingress
     name: service
   path: ingress-patch.yaml
+configMapGenerator:
+- name: lua-libs
+  files:
+  - lua_files/json.lua
+  - lua_files/uuid.lua
+patchesJson6902:
+- target:
+    version: v1
+    kind: Deployment
+    name: service
+  path: volume-patch.yaml
