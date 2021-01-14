@@ -1,0 +1,18 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: ServiceEntry
+metadata:
+  name: external-svc-minimal
+spec:
+  hosts:
+  - minimal.external.kind.org
+  exportTo:
+  - "."
+  location: MESH_EXTERNAL
+  ports:
+  - number: 30100
+    name: http
+    protocol: HTTP
+  resolution: DNS
+  # STATIC
+  # endpoints:
+  # - address: 172.17.0.6
