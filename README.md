@@ -729,7 +729,6 @@ configMapGenerator:
 - name: lua-libs
   files:
   - lua_files/json.lua
-  - lua_files/uuid.lua
 ```
 
 Kustomize would output a ConfigMap that can be consumed in a VolumeMount inside the pod. `istio-proxy` container, thanks to the annotation `sidecar.istio.io/userVolumeMount: '[{"name":"lua-libs", "mountPath":"/var/lib/lua", "readonly":true}]'` can mount those file into the container filesystem.
