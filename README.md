@@ -722,6 +722,17 @@ end
 ```
 
 In details, we are execute a `POST` request passing a specific body, this will trigger the request from the service to `bounced-service` as we did in the previous examples. This time, though, it is Envoy proxy that executes the `POST` request while we are simply executing a `GET`.
+In the Lua code you can notice that a JSON library file is loaded. The file has been deployed in the container through the Volume mount of a ConfigMap:
+
+```yaml
+configMapGenerator:
+- name: lua-libs
+  files:
+  - lua_files/json.lua
+  - lua_files/uuid.lua
+```
+
+Kustomize would output a ConfigMap that can be consumed in a VolumeMount inside the pod. `istio-proxy` container, thanks to the annotation `sidecar.istio.io/userVolumeMount: '[{"name":"lua-libs", "mountPath":"/var/lib/lua", "readonly":true}]'` can mount those file into the container filesystem.
 
 ```bash
 $ kubectl exec -it minimal-service-6d69cfd898-c4qmn -c minimal-service -- curl minimal.external.kind.org:30100 -v
