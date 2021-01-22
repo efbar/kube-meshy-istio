@@ -1,10 +1,22 @@
 KUBE MESHY - Istio version
 =========
 
-## What for
-
 This project wants to show some basic functionalities of service mesh in Kubernetes.
 In this case we will use **Istio**.
+
+- [KUBE MESHY - Istio version](#kube-meshy---istio-version)
+  - [Components](#components)
+  - [Installation](#installation)
+  - [Play with mesh](#play-with-mesh)
+    - [Setup the mesh](#setup-the-mesh)
+    - [Meshing workload](#meshing-workload)
+    - [Use mesh feature](#use-mesh-feature)
+      - [Gateways and Virtual Services](#gateways-and-virtual-services)
+      - [Retries](#retries)
+      - [Traffic Shifting](#traffic-shifting)
+      - [Service Discovery and Service Entries](#service-discovery-and-service-entries)
+      - [Cluster-to-Cluster communication with Envoy filter](#cluster-to-cluster-communication-with-envoy-filter)
+        - [Pushing more EnvoyFilters](#pushing-more-envoyfilters)
 
 ## Components
 
@@ -170,7 +182,7 @@ And we reached Kiali's pod.
 
 ----
 
-#### Meshing workload
+### Meshing workload
 
 The next step is deploying the worker plane of the mesh. That means sidecar containers along side the actual workload pods.
 One way to do this is marking a namespace as injectable of Istio's envoys:
@@ -558,7 +570,7 @@ $ docker inspect -f '{{.NetworkSettings.IPAddress}}' 11da9c53c43a
 
 ----
 
-#### Cluster-to-cluster communication with Envoy filter
+#### Cluster-to-Cluster communication with Envoy filter
 
 We just saw how to talk to external services. But what if an external service resides into another Kubernetes cluster?
 
@@ -721,7 +733,7 @@ function envoy_on_response(response_handle)
 end
 ```
 
-In details, we are execute a `POST` request passing a specific body, this will trigger the request from the service to `bounced-service` as we did in the previous examples. This time, though, it is Envoy proxy that executes the `POST` request while we are simply executing a `GET`.
+In details, we are executing a `POST` request passing a specific body, this will trigger the request from the service to `bounced-service` as we did in the previous examples. This time, though, it is Envoy proxy that executes the `POST` request while we are simply executing a `GET`.
 In the Lua code you can notice that a JSON library file is loaded. The file has been deployed in the container through the Volume mount of a ConfigMap:
 
 ```yaml
