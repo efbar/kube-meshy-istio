@@ -23,7 +23,7 @@ echo "Waiting Kubernetes online.."
 
 KUBEURL=$(kubectl cluster-info|sed $'s,\x1b\\[[0-9;]*[a-zA-Z],,g' | awk '/master/{print $6}')
 
-while [ $(curl --output /dev/null --silent --head --fail $KUBEURL) != "403" ]; do
+while [[ $(curl -k --silent --output /dev/null --write-out "%{http_code}" $KUBEURL) != "403" ]]; do
     printf '.'
     sleep 5
 done
