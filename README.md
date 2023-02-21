@@ -658,7 +658,7 @@ Something happens, but not what we wanted. We reached the gateway but it can't r
 Here is where `EnvoyFilter` can help us:
 
 ```bash
-$ kubectl apply -f istio/minimal-filter.yaml
+$ kubectl apply -f istio/gateway-filter.yaml
 ```
 
 With this file we are deploying an `EnvoyFilter` for the ingressgateway. In particular we are filtering, with an HTTP filter based on Lua, the headers of the request, and we are doing that before the `VirtualService` routing decision.
